@@ -1,9 +1,6 @@
-# neo4j-kafka-consumer-python
-Neo4j Kakfa integration demo in python, using the confluent-kafka client
-
-##Neo4j GraphGist - Enterprise Architectures: Real-time Graph Updates using Kafka Messaging
-
-# Neo4j Use Case: Low Latency Graph Analytics & OLTP - Update 1M Nodes in 90 secs with Kafka and Neo4j Bolt
+# Neo4j-kafka-consumer-python Use Case: Low Latency Graph Analytics & OLTP
+Neo4j Kakfa integration demo in python on Ubuntu, using the confluent-kafka client.  
+Real-time Graph Updates using Kafka Messaging.
 
 ## Introduction
 
@@ -52,35 +49,98 @@ I've used the Activision benchmarking script as the framework for this demo -- t
 ---
 
 
-## PART 1: Setting up Kafka and Neo4j
+## Setting up Kafka and Neo4j
 
 The easiest way to get started with Kafka is to follow the directions provided on the Confluent Quickstart for setting up a single instance Kafka server.
 
 
-### Step 1. Java version
+### Java version
 Make sure you are running the 1.8 JDK (1.7 works too)
 
 ```
-$ java -version
-java version "1.8.0_102"
-Java(TM) SE Runtime Environment (build 1.8.0_102-b14)
-Java HotSpot(TM) 64-Bit Server VM (build 25.102-b14, mixed mode)
+java -version
 ```
 
-### Step 2. Download & Install Confluent Enterprise
-Unzip and install the Confluent 3.1.1 on your local machine.  
+### Download & Install Confluent on Ubuntu:
+https://docs.confluent.io/3.1.1/quickstart.html
 
-Enterprise version is fun to play with.
+navigate with `cd` to the destination folder and then download confluent with:
+```
+curl -O http://packages.confluent.io/archive/5.4/confluent-community-5.4.1-2.12.zip
+```
 
-http://docs.confluent.io/3.1.1/installation.html#installation
+Unzip the package:
+```
+unzip confluent-5.4.1-2.12.zip
+```
+
+Confluent folder is composed as:
+```
+bin  etc  lib  logs  README  share  src
+```
+
+Open a new terminal with the unzipped folder of the downloaded confluent platform as base dir and then run Zookeeper:
+```
+./bin/zookeeper-server-start ./etc/kafka/zookeeper.properties
+```
+
+Open a new terminal with the unzipped folder of the downloaded confluent platform as base dir and then run Kafka:
+```
+./bin/kafka-server-start ./etc/kafka/server.properties
+```
+
+Open a new terminal with the unzipped folder of the downloaded confluent platform as base dir and then start the schema registry:
+```
+./bin/schema-registry-start ./etc/schema-registry/schema-registry.properties
+```
+
+Now the service is on and is possible to send some Avro data to a Kafka topic using a utility provided with Kafka to send the data without having to write any code. 
+Open a new terminal with the unzipped folder of the downloaded confluent platform as base dir, move in bin with `cd` and then:
+```
+kafka-avro-console-producer --broker-list localhost:9092 --topic test --property value.schema='{"type":"record","name":"myrecord","fields":[{"name":"f1","type":"string"}]}'
+```
+
+Now the console is in appending mode, is possible to write data to pass it to kafka, for example write line by line the following:
+```
+{"f1":"value1"}
+
+{"f1":"value2"}
+
+{"f1":"value3"}
+```
+
+finally is possible to shut down the process with `ctrl+c`
 
 
-### Step 3. Install librdkafka library
+Is possible to check the data produced using Kafka's console consumer process to read data from the topic:
+`cd` to the same confluent's bin folder and then:
+```
+kafka-avro-console-consumer --topic test --zookeeper localhost:2181 --from-beginning
+```
+
+the last output's rows shows the values written:
+```
+{"f1":"value1"}
+{"f1":"value2"}
+{"f1":"value3"}
+```
+Finally press `ctrl+c` to shut down the process.
+
+To delete a topic move in confluent bin folder and then:
+```
+kafka-topics --zookeeper localhost:2181 --delete --topic test
+```
+
+When all is done, shut down the services in the reverse order that you started them.
+
+---
+
+### Install librdkafka library
 
 Install the librdkafka C library, Kafka won't run without it
 
 ```
-$ brew install librdkafka
+sudo apt install librdkafka-dev
 ```
 
 or install from source:
@@ -91,120 +151,101 @@ Some useful documentation on configs (pay attention to buffer sizes)
 
 http://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
 
-### Step 4. Confluent Kafka Quickstart - verify services
+---
 
-Now follow the Confluent Quickstart and make sure that you can start Zookeeper and Kafka:
-
-http://docs.confluent.io/3.1.1/quickstart.html#quickstart
-
-When you are done, shut down all of the services in the reverse order that you started them.
-
-
-### Neo4j Kafka Demo Dependencies
-
-
-### Step 1. Start Zookeeper and Kafka
-
-To run the demo, you need to open a terminal window and start zookeeper.  
-We don't need any of the other Confluent services (schema registry, streams, console, RESTapi).
-
-```
-$ ./bin/zookeeper-server-start ./etc/kafka/zookeeper.properties
-```
-
-Then open a NEW terminal window and start Kafka
-
-```
-$ ./bin/kafka-server-start ./etc/kafka/server.properties
-```
-
-If you haven't previously created a Kafka topic, you may need to create one to initialize the server.
-
-```
-$ ./bin/kafka-topics --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test_topic
-```
-
-We'll create another topic later inside the script.
-
-
-### Step 2. Install Python dependencies.
+### Install Python dependencies.
 
 There are three dependencies [confluent-python](https://github.com/confluentinc/confluent-kafka-python), [pykafka](https://github.com/Parsely/pykafka), and [neo4j-driver](https://github.com/neo4j/neo4j-python-driver).
 
-You'll need to be running Python 3.5 and Jupyter if you want to run the notebook.
-
-If you are new to Python, check out the Anaconda distribution.
+Install Python 3.5 and Jupyter if you want to run the notebook.
 
 ```
-$ pip install confluent-kafka
-$ pip install pykakfa
-$ pip install neo4j-driver
-
+pip3 install confluent-kafka
+pip3 install pykafka
+pip3 install neo4j-driver
 ```
-
-*Note on confluent-kafka: This has a dependency on librdkafka, and will complain if it can't find it. You can install librdkafka into your python home from source, using the configure command.  
-(I use Anaconda python, so I put it there)*
-
-```
-librdkafka-master $ ./configure --prefix=/Users/michael/anaconda
-librdkafka-master $ make -j
-librdkafka-master $ sudo make install
-librdkafka-master $ pip install confluent-kafka
-
-```
-
-
+---
 ### Step 3. Install Neo4j & APOC dependencies
 
-I'm using Neo4j 3.1 released in Dec 2016.  If you haven't seen this latest version, it's really worth checking out, lots of new enterprise features.  APOC is a huge collection of really useful Neo4j utilities, we'll use some here.
+Installing Neo4J: https://www.digitalocean.com/community/tutorials/how-to-install-neo4j-on-an-ubuntu-vps
 
-You can get Neo4j here, get the Enterprise versions (so you can use plugins).
-
-https://neo4j.com/download/
-
-Open a new terminal window and start Neo4j. You'll be asked to change your password if this is a new install.
-
+Download Neo4j from the repository:
 ```
-$ ./bin/neo4j start
-Starting Neo4j.
-Started neo4j (pid 69178). By default, it is available at http://localhost:7474/
-There may be a short delay until the server is ready.
-
+wget -O - http://debian.neo4j.org/neotechnology.gpg.key | sudo apt-key add -
 ```
-For this demo I'm using the default "neo4j" password.
-You can put in a dummy password "test" and then set it back to the default password "neo4j".
-Use this command in the Neo4j browser to get the password prompts:
-
 ```
-:server change-password
+sudo bash -c "echo 'deb http://debian.neo4j.org/repo stable/' > /etc/apt/sources.list.d/neo4j.list"
+```
+```
+sudo apt-get update
+```
+```
+sudo apt-get install neo4j
 ```
 
-Now shutdown Neo4j and install the APOC package .jar file in the neo4j /plugins folder.
-
+Move to Neo4j's installation directory shown with:
 ```
-$ ./bin/neo4j stop
-Stopping Neo4j.. stopped
-
+dpkg -L neo4j
 ```
+Then navigate in:
+```
+cd usr/bin/
+```
+<!--
+//Set initial password for neo4j database admin.
+//in the bin folder where it's installed neo4j run the command:
+//neo4j-admin set-initial-password h6u4%kr
+//where h6u4%kr is the password of the user named neo4j
+-->
 
+Start neo4j with the command:
+```
+sudo neo4j start
+```
+There may be a short delay until the server is ready. Open browser and navigate to `localhost:7474/browser/`
+
+Connection URL: `bolt://localhost:7687`  
+Autentication type: Username/password  
+Username: `neo4j`  
+Password: `neo4j`
+
+Neo4j change password:  
+new password:  
+repeat new password:
+
+Connected to Neo4j (nice to meet you) You are connected as user neo4j to bolt://localhost:7687 Connection credentials are stored in your web browser.
+
+Now that neo4j is ready shut down it:
+```
+sudo neo4j stop
+```
+Navigate to Neo4j's folder plugins to install a set called APOC downloadable from github that is a library that consists of procedures and functions to help with tasks in areas like data integration, graph algorithms or data conversion.
 https://github.com/neo4j-contrib/neo4j-apoc-procedures
-
-
-When this is done, restart Neo4j.
-
 ```
-$ ./bin/neo4j start
-Starting Neo4j.
-Started neo4j (pid 69456). By default, it is available at http://localhost:7474/
-There may be a short delay until the server is ready.
-
+cd /
+cd var/lib/neo4j/plugins
+neo4j version
 ```
+With the given neo4j version find the correct APOC version to download at "Version Copatibility Matrix" in README.md of APOC repository.
 
-
+In the folder `var/lib/neo4j/plugins` run the following instruction with the right APOC version:
+```
+sudo wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/3.5.0.9/apoc-3.5.0.9-all.jar
+```
+Now in the folder there's a jar file. Navigate in neo4j configuration folder located at `/etc/neo4j/` and open with `sudo nano` the file: `neo4j.conf`  
+Append the following lines to allow procedures that use internal API and whitelist procedures and functions in general:
+```
+dbms.security.procedures.unrestricted=apoc.*
+dbms.security.procedures.whitelist=apoc.*
+```
+Writeout and exit.  
+Restart your system, start neo4j and run the following command in neo4j shell to test APOC version:
+```
+RETURN apoc.version();
+```
 ---
 
-
-## PART 2:  Creating the Neo4j Graph Database and Kafka Messages
+## Creating the Neo4j Graph Database and Kafka Messages
 
 Let's start by making the MovieFriends graph. You'll need to start with a new, blank Neo4j database.
 
@@ -696,16 +737,4 @@ Processed 1000000 messsages in 91.31 seconds
 
 ## Summary
 
-In this GraphGist, I provided a simple demonstration of how Kafka can be integrated with Neo4j to create a high-throughput, loosely-coupled ETL using Kafka's simple consumer and Neo4j's high-speed Bolt protocol. Neo4j has excellent OLTP capabilities and when coupled with the Kakfa distributed streaming platform, you now have the opportunity to build highly-scalable, real-time graph analytics into your enterprise applications.  
-
-Special thanks to Tim Williamson (Monsanto), Michael Hunger (Neo4j), Michael Kilgore (InfoClear).
-
-For more information about how Neo4j can supercharge your enterprise analytics, contact:
->
->Michael Moore
->
->Graph Architect & Certified Neo4j Professional
->
->michael.moore@graphadvantage.com
->
->http://www.graphadvantage.com
+In this GraphGist, there's a simple demonstration of how Kafka can be integrated with Neo4j to create a high-throughput, loosely-coupled ETL using Kafka's simple consumer and Neo4j's high-speed Bolt protocol. Neo4j has excellent OLTP capabilities and when coupled with the Kakfa distributed streaming platform.  
